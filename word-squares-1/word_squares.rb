@@ -1,20 +1,42 @@
+class Array
+  def subtract(small)
+    large_dup = self.dup
+    small.each do |l|
+      large_dup.delete_at(large_dup.index(l)) if large_dup.include?(l)
+    end
+    large_dup
+  end
+
+  def superset?(small)
+    large_dup = self.dup
+    small.each do |l|
+      if large_dup.include?(l)
+        large_dup.delete_at(large_dup.index(l)) 
+      else
+        return false
+      end
+    end
+    !!large_dup
+  end
+end
+
 class WordSquares
   def initialize(*args)
     @grid_size = (args[0] || 3).to_i
     @input = args[1] || 'onenowewe'
     @dictionary_path  = args[2] || '/usr/share/dict/words'
+    @input_letter_array = @input.split(//)
   end
 
   def run
-    all_input_combos = all_input_combos_for(@grid_size, @input)
-    @words_master_list = valid_english_words(all_input_combos.to_a).sort
-    puts "master list ready"
+    @dictionary = load_valid_words_with_length(@grid_size)
+    p @dictionary.count
     work
     puts "No result"
   end
 
   def work(collector = [])
-    p collector
+    # p collector
     if collector.size == @grid_size
       puts collector.map(&:join)
       exit(true)
@@ -26,26 +48,29 @@ class WordSquares
     end.join
 
     starting_pattern = ".*" if starting_pattern.empty?
+    starting_pattern_regex = Regexp.new("\\A#{starting_pattern}")
 
-    used_letters = collector.flatten
-    remaining_letters = compute_remaining_letters(@input, used_letters)
-    word_list = all_input_combos_for(@grid_size, remaining_letters) & @words_master_list
-    possbile_words =  word_list.grep(Regexp.new("\\A#{starting_pattern}"))
-
-    possbile_words.each do |word|
-      unless work(collector << word.split(//))
+    remaining_letters_array = @input_letter_array.subtract(collector.flatten)
+    @dictionary.each do |word|
+      next unless word.join.match(starting_pattern_regex)
+      next unless remaining_letters_array.superset?(word)
+      unless work(collector << word)
         collector.pop
       end
     end
     return false
   end
 
-  def compute_remaining_letters(input, used_letters)
-    all_letters = input.split(//)
-    used_letters.each do |l|
-      all_letters.delete_at(all_letters.index(l))
+
+  def load_valid_words_with_length(word_length)
+    dictionary = []
+    IO.readlines(@dictionary_path).each do |word|
+      word = word.chomp.split(//)
+      if word.length == word_length && @input_letter_array.superset?(word)
+        dictionary << word
+      end
     end
-    all_letters.join
+    dictionary
   end
 
   def all_input_combos_for(size, input)
