@@ -29,14 +29,12 @@ class WordSquares
   end
 
   def run
-    @dictionary = load_valid_words_with_length(@grid_size)
-    p @dictionary.count
+    @dictionary = build_dictionary_cache(@grid_size)
     work
     puts "No result"
   end
 
   def work(collector = [])
-    # p collector
     if collector.size == @grid_size
       puts collector.map(&:join)
       exit(true)
@@ -45,14 +43,10 @@ class WordSquares
     count = collector.size
     starting_pattern = (1..count).map do |n|
       collector[n-1][count]
-    end.join
-
-    starting_pattern = ".*" if starting_pattern.empty?
-    starting_pattern_regex = Regexp.new("\\A#{starting_pattern}")
+    end
 
     remaining_letters_array = @input_letter_array.subtract(collector.flatten)
-    @dictionary.each do |word|
-      next unless word.join.match(starting_pattern_regex)
+    @dictionary[starting_pattern].each do |word|
       next unless remaining_letters_array.superset?(word)
       unless work(collector << word)
         collector.pop
@@ -62,26 +56,17 @@ class WordSquares
   end
 
 
-  def load_valid_words_with_length(word_length)
-    dictionary = []
+  def build_dictionary_cache(word_length)
+    dictionary = Hash.new { |h, k| h[k] = [] }
     IO.readlines(@dictionary_path).each do |word|
       word = word.chomp.split(//)
       if word.length == word_length && @input_letter_array.superset?(word)
-        dictionary << word
+        0.upto(word_length - 1) do |index|
+          dictionary[word.slice(0, index)] << word
+        end
       end
     end
     dictionary
-  end
-
-  def all_input_combos_for(size, input)
-    input.split(//).permutation(size).map do |x|
-      x.join
-    end
-  end
-
-  def valid_english_words(all_input_combos)
-    dictionary = IO.readlines(@dictionary_path).map(&:chomp)
-    (all_input_combos & dictionary).sort
   end
 
 end
